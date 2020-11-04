@@ -1,19 +1,24 @@
 import base64
+import json
+
 import captcha as cap
 import time
+import classes as c
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from pprint import pprint
 from PIL import Image
 
-
 browser = webdriver.Chrome()
 browser.get('https://srv01.tjpe.jus.br/consultaprocessualunificada/')
+wait = WebDriverWait(browser, 10)
 
 browser.find_element(By.LINK_TEXT, 'Parte').click()
 
-cpf_cnpf_element = browser.find_element(By.ID, 'cpfCnpj',)
+cpf_cnpf_element = browser.find_element(By.ID, 'cpfCnpj', )
 button_element = browser.find_element(By.CLASS_NAME, 'button-consultar')
 
 time.sleep(15)
@@ -24,33 +29,33 @@ while resolve_captch == 1:
     try:
         global button_refresh_element
         try:
-            button_refresh_element = browser.find_element(By.CSS_SELECTOR, 'body > div > div.content-wrapper > ui-view > section.content.ng-scope > ng-include > div > div > div > div > form > div.form-group.ng-scope > div.top-alignment.captcha-wrapper > span.glyphicon.glyphicon-refresh.captcha')
+            button_refresh_element = browser.find_element(By.CSS_SELECTOR,
+                                                          'body > div > div.content-wrapper > ui-view > section.content.ng-scope > ng-include > div > div > div > div > form > div.form-group.ng-scope > div.top-alignment.captcha-wrapper > span.glyphicon.glyphicon-refresh.captcha')
         except:
             resolve_captch = 0
         button_refresh_element.click()
         time.sleep(3)
 
         captcha_text_element = browser.find_element(By.ID, 'captcha')
-        captcha_image_element = browser.find_element(By.CSS_SELECTOR, 'body > div > div.content-wrapper > ui-view > section.content.ng-scope > ng-include > div > div > div > div > form > div.form-group.ng-scope > div.top-alignment.captcha-wrapper > img.ng-isolate-scope')
+        captcha_image_element = browser.find_element(By.CSS_SELECTOR,
+                                                     'body > div > div.content-wrapper > ui-view > section.content.ng-scope > ng-include > div > div > div > div > form > div.form-group.ng-scope > div.top-alignment.captcha-wrapper > img.ng-isolate-scope')
 
         encoded = captcha_image_element.screenshot_as_base64
         data = base64.b64decode(encoded)
 
         captcha_name = 'captcha_' + str(cont) + '.png'
 
-        with open(captcha_name, 'wb') as ImageFile:
+        with open('./img/'+captcha_name, 'wb') as ImageFile:
             ImageFile.write(data)
             ImageFile.close()
 
-
-        original = Image.open(captcha_name)
-        original.save("final.tif")  # reading the image from the request
-        captcha = Image.open("final.tif").convert("1")
+        original = Image.open('./img/'+captcha_name)
+        original.save('./img/final.tif')  # reading the image from the request
+        captcha = Image.open('./img/final.tif').convert("1")
         captcha.resize((1000, 500), Image.NEAREST)
 
         parciais = []
         mais_frequentes = []
-
 
         parciais.append(cap.obter_caracteres(captcha))
         parciais.append(cap.obter_caracteres(captcha))
@@ -70,15 +75,13 @@ while resolve_captch == 1:
         print(result)
 
         cpf_cnpf_element.clear()
-        entrada = '10103566406'
+        entrada = '19391373062'
         cpf_cnpf_element.send_keys(entrada)
         captcha_text_element.send_keys(result)
         button_element.click()
 
         text_result_element = browser.find_element(By.CSS_SELECTOR,
                                                    'body > div > div.content-wrapper > ui-view > section.content.ng-scope > ng-include > div > div.ng-scope.ng-isolate-scope.alert.alert-dismissible.alert-info > div > span > li')
-
-
 
         if 'Valor indicado para a imagem de confirmação inválido ou expirado. Tente novamente.' == text_result_element.text:
             cont += 1
@@ -88,19 +91,81 @@ while resolve_captch == 1:
     except:
         print("An exception occurred")
 
-
 cpf_cnpf_element.clear()
 entrada = '18384102449'
 cpf_cnpf_element.send_keys(entrada)
 button_element.click()
 
+time.sleep(3)
+
+grupos = []
+
+temElementos = True
+
+try:
+    while temElementos:
+        # Get element with tag class 'list-resultados'
+        grupos_list_element = browser.find_element_by_class_name('list-group')
+        # Get all the elements available with tag name 'p=div'
+        grupos_element = grupos_list_element.find_elements(By.CLASS_NAME, 'list-resultados-item-link')
+
+        processos = []
+
+        original_window = browser.current_window_handle
+
+        for grup in grupos_element:
+            grup.click()
+
+            wait.until(EC.number_of_windows_to_be(2))
+
+            # Loop through until we find a new window handle
+            for window_handle in browser.window_handles:
+                if window_handle != original_window:
+                    browser.switch_to.window(window_handle)
+                    break
+
+            processos_list_element = browser.find_element(By.CSS_SELECTOR, 'body > div.wrapper > div.content-wrapper > ui-view > section.content.ng-scope > ui-view > div')
+            processos_element = processos_list_element.find_elements(By.TAG_NAME, 'ul')
+
+            for proce in processos_element:
+                h4_processo_element = proce.find_element(By.TAG_NAME, 'h4')
+                h4_numero_processo_element = proce.find_element(By.CLASS_NAME, 'panel-body').find_element(By.TAG_NAME, 'h4')
+                div_movimentacoes_element = proce.find_elements(By.CLASS_NAME, 'result-movimentacoes')
+
+                list_movimentacoes = []
+
+                for e in div_movimentacoes_element:
+                    data_movimetacao_element = e.find_element(By.TAG_NAME, 'label')
+                    complemento_movimentacao_element = e.find_element(By.CSS_SELECTOR, 'div > div')
+
+                    movimento = c.Movimentacoes(data_movimetacao_element.text, complemento_movimentacao_element.text)
+                    list_movimentacoes.append(movimento)
+
+                processo = c.Processo(h4_processo_element.text, h4_numero_processo_element.text, list_movimentacoes)
+                processos.append(processo)
+
+            grupo = c.Grupo(processos)
+            grupos.append(grupo)
+
+            browser.close()
+            browser.switch_to.window(original_window)
+
+        # Returns true if element is enabled else returns false
+        next = browser.find_element(By.CSS_SELECTOR,
+                                    'body > div > div.content-wrapper > ui-view > section.content.ng-scope > ui-view > div > div > div > div.row.pagination-resultado > div.col-sm-7.pagination-resultado > ul > li.pagination-next.ng-scope.disabled')
+
+        if next.is_enabled():
+            next.click()
+        else:
+            temElementos = False
+except:
+    print("An exception occurred")
+
+result = c.Result(grupos)
+print(result)
+print(c.EmployeeEncoder().encode(result))
+
+# employeeJSONData = json.dumps(result, indent=4, cls=c.EmployeeEncoder)
+# print(employeeJSONData)
 
 print("OPAAAAAAAAAA")
-
-
-
-
-
-
-
-
