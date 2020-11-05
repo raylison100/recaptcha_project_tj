@@ -1,11 +1,9 @@
 import base64
 import json
 import time
-import captcha as cap
-import classes as c
+from scripts import captcha as cap, classes as c
 
 from datetime import datetime
-from pprint import pprint
 from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.common.by import By
