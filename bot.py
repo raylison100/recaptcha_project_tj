@@ -1,27 +1,32 @@
 import base64
 import json
-
-import captcha as cap
 import time
+import captcha as cap
 import classes as c
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from datetime import datetime
 from pprint import pprint
 from PIL import Image
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.options import Options
 
-browser = webdriver.Chrome()
+chrome_options = Options()
+chrome_options.add_argument('--headless')
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+
+browser = webdriver.Chrome(chrome_options=chrome_options)
 browser.get('https://srv01.tjpe.jus.br/consultaprocessualunificada/')
+
 wait = WebDriverWait(browser, 10)
 
 browser.find_element(By.LINK_TEXT, 'Parte').click()
 
 cpf_cnpf_element = browser.find_element(By.ID, 'cpfCnpj', )
 button_element = browser.find_element(By.CLASS_NAME, 'button-consultar')
-
-time.sleep(15)
 
 resolve_captch = 1
 cont = 0
@@ -51,7 +56,7 @@ while resolve_captch == 1:
 
         original = Image.open('./img/'+captcha_name)
         original.save('./img/final.tif')  # reading the image from the request
-        captcha = Image.open('./img/final.tif').convert("1")
+        captcha = Image.open('img/final.tif').convert("1")
         captcha.resize((1000, 500), Image.NEAREST)
 
         parciais = []
@@ -70,9 +75,9 @@ while resolve_captch == 1:
         for i in parciais:
             mais_frequentes.append(cap.contar_caracteres(i))
 
-        pprint(mais_frequentes)
+        # pprint(mais_frequentes)
         result = cap.resultado(mais_frequentes)
-        print(result)
+        # print(result)
 
         cpf_cnpf_element.clear()
         entrada = '19391373062'
@@ -109,12 +114,12 @@ try:
         # Get all the elements available with tag name 'p=div'
         grupos_element = grupos_list_element.find_elements(By.CLASS_NAME, 'list-resultados-item-link')
 
-        processos = []
-
         original_window = browser.current_window_handle
 
         for grup in grupos_element:
             grup.click()
+
+            processos = []
 
             wait.until(EC.number_of_windows_to_be(2))
 
@@ -162,10 +167,14 @@ except:
     print("An exception occurred")
 
 result = c.Result(grupos)
-print(result)
-print(c.EmployeeEncoder().encode(result))
+data_e_hora_atuais = datetime.now()
+data_e_hora_em_texto = data_e_hora_atuais.strftime('%d_%m_%Y %H:%M')
+data_e_hora_em_texto = data_e_hora_em_texto.replace(' ', '_').replace(':', '_')
+file = entrada + '_' + data_e_hora_em_texto + '.json'
 
-# employeeJSONData = json.dumps(result, indent=4, cls=c.EmployeeEncoder)
-# print(employeeJSONData)
+with open(file, 'w', encoding='utf8') as file:
+    file.write(json.dumps(result, indent=4, ensure_ascii=False, cls=c.EmployeeEncoder))
+    file.close()
 
-print("OPAAAAAAAAAA")
+browser.quit()
+print("Fim script")

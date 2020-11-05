@@ -9,7 +9,6 @@ class Grupo:
     def __init__(self, processos):
         self.processos = processos
 
-
 class Processo:
     def __init__(self, processo, numero_processo, movimentacoes):
         self.processo = processo
@@ -21,6 +20,7 @@ class Movimentacoes:
     def __init__(self, data, complemento):
         self.data = data
         self.complemento = complemento
+
 
 class EmployeeEncoder(JSONEncoder):
     def default(self, o):
