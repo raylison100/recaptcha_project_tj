@@ -176,3 +176,4 @@ with open(file, 'w', encoding='utf8') as file:
 
 browser.quit()
 print("Fim script")
+print("Fim script")
